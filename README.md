@@ -5,7 +5,6 @@ A FastAPI service that provides audio transcription and translation capabilities
 ## Features
 
 - Audio transcription with language detection
-- Text translation between languages
 - Support for multiple audio formats (MP3, WAV, M4A, MP4)
 - Timestamp support for transcriptions
 - Configurable chunk processing for long audio files
@@ -62,25 +61,6 @@ curl -X POST "http://localhost:8000/api/v1/transcribe" \
      -F "file=@audio.mp3" \
      -F "language=en" \
      -F "return_timestamps=true"
-```
-
-### Translate Text
-`POST /api/v1/translate`
-
-Request body:
-```json
-{
-    "text": "Hello, world!",
-    "source_language": "en",
-    "target_language": "fr"
-}
-```
-
-Example:
-```bash
-curl -X POST "http://localhost:8000/api/v1/translate" \
-     -H "Content-Type: application/json" \
-     -d '{"text": "Hello, world!", "target_language": "fr"}'
 ```
 
 ## Supported Audio Formats
