@@ -1,6 +1,6 @@
 # Audio Transcription API
 
-A FastAPI service that provides audio transcription and translation capabilities using Whisper and NLLB models.
+A FastAPI service that provides audio transcription and translation capabilities using Whisper models.
 
 ## Features
 
@@ -65,9 +65,12 @@ curl -X POST "http://localhost:8000/api/v1/transcribe" \
 
 ## Supported Audio Formats
 
-```python:app/routers/transcription.py
-startLine: 10
-endLine: 16
+```    
+'audio/mpeg',
+'audio/wav',
+'audio/x-wav',
+'audio/mp4',
+'audio/x-m4a',
 ```
 
 ## Development
