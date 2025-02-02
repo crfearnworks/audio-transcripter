@@ -1,9 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from app.routers.transcription import create_router
 from app.services.transcription_service import TestTranscriptionService
-import io
+from app.models.transcription import TranscriptionOptions
 
 @pytest.fixture
 def test_app():
@@ -66,3 +66,39 @@ def test_transcribe_long_audio(client):
     
     assert response.status_code == 200
     assert "text" in response.json()
+
+def test_transcribe_with_options(client):
+    """Test transcription with custom options"""
+    files = {"file": create_test_audio_file()}
+    params = {
+        "language": "fr",
+        "task": "translate",
+        "return_timestamps": "true",
+        "chunk_length_s": "60"
+    }
+    response = client.post("/api/v1/transcribe", files=files, params=params)
+    
+    assert response.status_code == 200
+    assert "text" in response.json()
+    assert "segments" in response.json()
+
+def test_transcribe_invalid_options(client):
+    """Test transcription with invalid options"""
+    files = {"file": create_test_audio_file()}
+    params = {
+        "chunk_length_s": "0"  # Invalid value
+    }
+    response = client.post("/api/v1/transcribe", files=files, params=params)
+    
+    assert response.status_code == 422  # Validation error
+
+@pytest.mark.parametrize("language", ["en", "fr", "es", "de"])
+def test_transcribe_different_languages(client, language):
+    """Test transcription with different target languages"""
+    files = {"file": create_test_audio_file()}
+    params = {"language": language}
+    response = client.post("/api/v1/transcribe", files=files, params=params)
+    
+    assert response.status_code == 200
+    assert "text" in response.json()
+    

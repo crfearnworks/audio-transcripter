@@ -1,5 +1,9 @@
-from fastapi import APIRouter, UploadFile, HTTPException, File
+from fastapi import APIRouter, UploadFile, HTTPException, File, Depends
 from app.services.transcription_service import TranscriptionService
+from app.models.transcription import (
+    TranscriptionOptions, 
+    TranscriptionResponse,
+)
 
 ALLOWED_AUDIO_TYPES = {
     'audio/mpeg',
@@ -12,19 +16,13 @@ ALLOWED_AUDIO_TYPES = {
 def create_router(transcription_service: TranscriptionService) -> APIRouter:
     router = APIRouter()
 
-    @router.post("/transcribe")
-    async def transcribe_audio(file: UploadFile = File(...)):
+    @router.post("/transcribe", response_model=TranscriptionResponse)
+    async def transcribe_audio(
+        file: UploadFile = File(...),
+        options: TranscriptionOptions = Depends()
+    ):
         """
-        Transcribe an audio file to text.
-        
-        Args:
-            file: Audio file to transcribe
-            
-        Returns:
-            dict: Contains transcribed text
-            
-        Raises:
-            HTTPException: If file is invalid or transcription fails
+        Transcribe an audio file to text in its original language.
         """
         if not file.content_type in ALLOWED_AUDIO_TYPES:
             raise HTTPException(
@@ -33,8 +31,23 @@ def create_router(transcription_service: TranscriptionService) -> APIRouter:
             )
         
         try:
-            text = await transcription_service.transcribe(file)
-            return {"text": text}
+            result = await transcription_service.transcribe(file, options)
+            
+            # Handle different response formats
+            if isinstance(result, str):
+                return TranscriptionResponse(text=result)
+            elif isinstance(result, dict):
+                if "text" not in result:
+                    result = {"text": " ".join(chunk["text"] for chunk in result)}
+                return TranscriptionResponse(**result)
+            elif isinstance(result, list):
+                text = " ".join(chunk["text"] for chunk in result)
+                return TranscriptionResponse(text=text, segments=result)
+            
+            raise HTTPException(
+                status_code=500, 
+                detail="Unexpected response format from transcription service"
+            )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
