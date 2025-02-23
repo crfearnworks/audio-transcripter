@@ -17,3 +17,8 @@ dependencies = [
     "transformers>=4.48.2",
     "uvicorn>=0.34.0",
 ]
+
+[dependency-groups]
+dev = [
+    "contxt>=0.1.1",
+]
