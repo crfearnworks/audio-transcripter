@@ -3,6 +3,7 @@ from app.services.transcription_service import TranscriptionService
 from app.models.transcription import (
     TranscriptionOptions, 
     TranscriptionResponse,
+    YoutubeTranscriptionRequest,
 )
 
 ALLOWED_AUDIO_TYPES = {
@@ -50,5 +51,38 @@ def create_router(transcription_service: TranscriptionService) -> APIRouter:
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+    @router.post("/transcribe/youtube", response_model=TranscriptionResponse)
+    async def transcribe_youtube(request: YoutubeTranscriptionRequest):
+        """
+        Transcribe audio from a YouTube video URL.
+        """
+        try:
+            result = await transcription_service.transcribe(
+                str(request.url),
+                request.options or TranscriptionOptions(),
+                is_youtube=True
+            )
+            
+            # Handle different response formats
+            if isinstance(result, str):
+                return TranscriptionResponse(text=result)
+            elif isinstance(result, dict):
+                if "text" not in result:
+                    result = {"text": " ".join(chunk["text"] for chunk in result)}
+                return TranscriptionResponse(**result)
+            elif isinstance(result, list):
+                text = " ".join(chunk["text"] for chunk in result)
+                return TranscriptionResponse(text=text, segments=result)
+            
+            raise HTTPException(
+                status_code=500, 
+                detail="Unexpected response format from transcription service"
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to transcribe YouTube video: {str(e)}"
+            )
 
     return router

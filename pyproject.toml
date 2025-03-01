@@ -16,6 +16,7 @@ dependencies = [
     "tiktoken>=0.8.0",
     "transformers>=4.48.2",
     "uvicorn>=0.34.0",
+    "yt-dlp>=2024.3.10",
 ]
 
 [dependency-groups]
