@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel, Field, HttpUrl
+from typing import Optional, List, Union
 
 class TranscriptionOptions(BaseModel):
     language: Optional[str] = Field(
@@ -17,7 +17,15 @@ class TranscriptionOptions(BaseModel):
         description="Length of audio chunks to process at a time (in seconds)"
     )
 
+class YoutubeTranscriptionRequest(BaseModel):
+    url: HttpUrl = Field(..., description="YouTube video URL to transcribe")
+    options: Optional[TranscriptionOptions] = Field(
+        default_factory=TranscriptionOptions,
+        description="Transcription options"
+    )
+
 class TranscriptionResponse(BaseModel):
     text: str
     language: Optional[str] = None
     segments: Optional[List[dict]] = None
+    video_title: Optional[str] = None  # Added for YouTube responses

@@ -1,3 +1,5 @@
+import yt_dlp
+from pathlib import Path
 import torch
 from abc import ABC, abstractmethod
 from fastapi import UploadFile
@@ -9,8 +11,13 @@ import os
 
 class TranscriptionService(ABC):
     @abstractmethod
-    async def transcribe(self, file: UploadFile, options: TranscriptionOptions) -> Union[str, Dict, List]:
-        """Transcribe an audio file to text"""
+    async def transcribe(
+        self, 
+        source: Union[UploadFile, str], 
+        options: TranscriptionOptions,
+        is_youtube: bool = False
+    ) -> Union[str, Dict, List]:
+        """Transcribe an audio file or YouTube video to text"""
         pass
 
 class WhisperTranscriptionService(TranscriptionService):
@@ -40,32 +47,62 @@ class WhisperTranscriptionService(TranscriptionService):
             device=self.device,
         )
 
-    async def transcribe(self, file: UploadFile, options: TranscriptionOptions) -> Union[str, Dict, List]:
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            content = await file.read()
-            temp_file.write(content)
-            temp_file.flush()
-            
-            try:
-                result = self.transcriber(
-                    temp_file.name,
-                    chunk_length_s=options.chunk_length_s,
-                    return_timestamps=options.return_timestamps,
-                    generate_kwargs={"language": options.language} if options.language else {}
-                )
-                return result
-            finally:
-                os.unlink(temp_file.name)
-
-class TestTranscriptionService(TranscriptionService):
-    async def transcribe(self, file: UploadFile, options: TranscriptionOptions) -> Dict:
-        content = await file.read()
-        result = {
-            "text": f"Test transcription for file size: {len(content)} bytes",
-            "language": options.language or "en",
+    async def _download_youtube_audio(self, url: str) -> tuple[str, str]:
+        """Download audio from YouTube video and return path to audio file and video title"""
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl': '%(title)s.%(ext)s',
         }
-        if options.return_timestamps:
-            result["segments"] = [
-                {"start": 0, "end": 1, "text": "Test segment"}
-            ]
-        return result
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            video_title = info['title']
+            audio_path = Path(f"{video_title}.mp3")
+            return str(audio_path), video_title
+
+    async def transcribe(
+        self, 
+        source: Union[UploadFile, str], 
+        options: TranscriptionOptions,
+        is_youtube: bool = False
+    ) -> Union[str, Dict, List]:
+        try:
+            if is_youtube:
+                audio_path, video_title = await self._download_youtube_audio(source)
+                try:
+                    result = self.transcriber(
+                        audio_path,
+                        chunk_length_s=options.chunk_length_s,
+                        return_timestamps=options.return_timestamps,
+                        generate_kwargs={"language": options.language} if options.language else {}
+                    )
+                    if isinstance(result, dict):
+                        result['video_title'] = video_title
+                    return result
+                finally:
+                    # Clean up downloaded file
+                    Path(audio_path).unlink(missing_ok=True)
+            else:
+                # Existing file upload logic
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    content = await source.read()
+                    temp_file.write(content)
+                    temp_file.flush()
+                    
+                    try:
+                        return self.transcriber(
+                            temp_file.name,
+                            chunk_length_s=options.chunk_length_s,
+                            return_timestamps=options.return_timestamps,
+                            generate_kwargs={"language": options.language} if options.language else {}
+                        )
+                    finally:
+                        os.unlink(temp_file.name)
+        except Exception as e:
+            raise RuntimeError(f"Transcription failed: {str(e)}")
+
