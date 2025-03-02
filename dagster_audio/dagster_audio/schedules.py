@@ -1,10 +1,9 @@
 from dagster import schedule, ScheduleEvaluationContext
-from datetime import datetime
-from . import assets
+from .jobs import file_job
 
 @schedule(
     cron_schedule="0 0 * * *",  # Run daily at midnight
-    job_name="audio_daily_job",
+    job=file_job,
     execution_timezone="UTC",
 )
 def daily_audio_schedule(context: ScheduleEvaluationContext):

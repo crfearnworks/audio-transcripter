@@ -1,18 +1,20 @@
-from dagster import Definitions, load_assets_from_modules, define_asset_job
+from dagster import Definitions, load_assets_from_modules
+from . import schedules
+from .assets import file_assets, audio_assets
+from .io_managers import filesystem_io_manager
+from .resources import AudioTranscriptionResource
+from .jobs import file_job
 
-from dagster_audio import schedules
-from dagster_audio.assets import file_assets
-
-all_assets = load_assets_from_modules([file_assets])
-
-# Define jobs for different asset groups
-file_job = define_asset_job(
-    name="file_processing_job", 
-    selection="files/*"  # Select assets in the 'files' group
-)
+all_assets = load_assets_from_modules([file_assets, audio_assets])
 
 defs = Definitions(
     assets=all_assets,
     schedules=[schedules.daily_audio_schedule],
     jobs=[file_job],
+    resources={
+        "filesystem": filesystem_io_manager,
+        "transcription": AudioTranscriptionResource(
+            model_name="distil-whisper/distil-large-v2"  # or distil-medium-v2 for smaller model
+        )
+    }
 )

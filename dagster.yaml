@@ -4,6 +4,9 @@ telemetry:
 run_coordinator:
   module: dagster.core.run_coordinator
   class: QueuedRunCoordinator
+  config:
+    max_concurrent_runs: 4
+    tag_concurrency_limits: []
 
 scheduler:
   module: dagster.core.scheduler

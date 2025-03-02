@@ -1,4 +1,4 @@
-from dagster import asset, Config
+from dagster import asset, Config, AssetIn, RetryPolicy
 import pandas as pd
 import os
 from datetime import datetime
@@ -6,11 +6,20 @@ from typing import List, Dict, Any
 
 class FolderScanConfig(Config):
     folder_path: str = "/app/data"  # Default path
-    include_extensions: List[str] = None  # If None, include all files
+    include_extensions: List[str] = ["mp3", "wav", "m4a", "mp4"]  # Default to audio files
     exclude_hidden: bool = True
+    min_file_size: int = 1024  # Minimum file size in bytes
 
-@asset
-def folder_files_scan(config: FolderScanConfig) -> pd.DataFrame:
+@asset(
+    group_name="files",  # Add group for better organization
+    description="Scans folder for audio files and returns metadata",
+    io_manager_key="filesystem",  # Specify storage
+    retry_policy=RetryPolicy(
+        max_retries=3,
+        delay=30,
+    )
+)
+def audio_files_scan(context, config: FolderScanConfig) -> pd.DataFrame:
     """
     Scans a folder recursively and returns file information as a DataFrame.
     
@@ -22,6 +31,10 @@ def folder_files_scan(config: FolderScanConfig) -> pd.DataFrame:
     - modified_time: Last modification timestamp
     """
     files_data = []
+    
+    if not os.path.exists(config.folder_path):
+        context.log.error(f"Folder path does not exist: {config.folder_path}")
+        return pd.DataFrame()
     
     for root, dirs, files in os.walk(config.folder_path):
         # Skip hidden directories if configured
@@ -43,6 +56,9 @@ def folder_files_scan(config: FolderScanConfig) -> pd.DataFrame:
             
             try:
                 file_stats = os.stat(file_path)
+                
+                if file_stats.st_size < config.min_file_size:
+                    continue
                 
                 file_info = {
                     'filename': filename,
