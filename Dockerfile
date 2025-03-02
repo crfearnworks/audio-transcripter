@@ -1,18 +1,33 @@
 FROM python:3.12-slim
 
-# Install FFmpeg
-RUN apt-get update && \
-    apt-get install -y ffmpeg && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Install required system dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
+# Set working directory
 WORKDIR /app
 
-COPY pyproject.toml .
-COPY README.md .
+# Copy requirements and install dependencies first (for better caching)
+COPY requirements.txt pyproject.toml ./
+RUN pip install --no-cache-dir -e .
 
-RUN pip install --no-cache-dir .
+# Copy the dagster implementation
+COPY dagster_audio/ ./dagster_audio/
+RUN pip install -e "./dagster_audio[dev]"
 
-COPY app app/
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV DAGSTER_HOME=/opt/dagster/dagster_home
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Create dagster home directory and copy configuration
+RUN mkdir -p /opt/dagster/dagster_home
+COPY workspace.yaml /opt/dagster/dagster_home/
+COPY dagster.yaml /opt/dagster/dagster_home/
+
+# Expose ports for FastAPI and Dagster
+EXPOSE 3000
+
+ENTRYPOINT ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]

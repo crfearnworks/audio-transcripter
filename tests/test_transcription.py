@@ -1,8 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
-from app.routers.transcription import create_router
-from app.models.transcription import TranscriptionOptions, YoutubeTranscriptionRequest
+from app_old.routers.transcription import create_router
+from app_old.models.transcription import TranscriptionOptions, YoutubeTranscriptionRequest
 from tests.utils import TestTranscriptionService
 
 @pytest.fixture

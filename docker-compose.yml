@@ -1,11 +1,18 @@
-version: '3.8'
-
 services:
-  api:
-    build: .
+  audio-transcripter:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "3000:3000"  # Dagster UI
     volumes:
-      - ./app:/app/app
+      - dagster-data:/opt/dagster/dagster_home
+      - ./dagster_audio:/app/dagster_audio  # For development hot-reload
     environment:
-      - ENVIRONMENT=development
+      - DAGSTER_HOME=/opt/dagster/dagster_home
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+volumes:
+  dagster-data:
+    driver: local

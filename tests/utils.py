@@ -1,7 +1,7 @@
 from typing import Union, Dict
 from fastapi import UploadFile
-from app.services.transcription_service import TranscriptionService
-from app.models.transcription import TranscriptionOptions
+from app_old.services.transcription_service import TranscriptionService
+from app_old.models.transcription import TranscriptionOptions
 
 class TestTranscriptionService(TranscriptionService):
     async def transcribe(
